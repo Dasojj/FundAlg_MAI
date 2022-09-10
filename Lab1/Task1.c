@@ -12,6 +12,14 @@ int power(int x, int n) {
 	if(n < 0) return power (1/x, -n);
 	return x * power(x, n-1);
 }
+unsigned int ston(char* s){
+	unsigned int num = 0;
+	while(*s)
+	{
+		num = num*10 + (*s++ - '0');
+	}
+	return num;
+}
 
 
 int main(int argc, char** argv) {
@@ -23,11 +31,11 @@ int main(int argc, char** argv) {
 		printf("Too many arguments\n");
 		return 0;
 	}
-	if (strtol(argv[2], NULL, 10) < 0) {
+	if (ston(argv[2]) < 0) {
 		printf("Second argument must be a positive number\n");
 		return 0;
 	}
-	unsigned int num = strtol(argv[2], NULL, 10);
+	unsigned int num = ston(argv[2]);
 	if (num == 0 && strcmp(argv[2], "0")) {
 		printf("Second argument must be a positive number\n");
 		return 0;
