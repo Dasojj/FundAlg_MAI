@@ -31,7 +31,7 @@ int is_letter(char l){
     if((l >= 'A' && l <= 'Z') || (l >= 'a' && l <= 'z')) return 1;
     return 0;
 }
-int is_special(char l){
+int is_special(char l){	
     if((l >= 'A' && l <= 'Z') || (l >= 'a' && l <= 'z') || (l >= '0' && l <= '9') || l == ' ' || l == '\n') return 0;
     return 1;
 }
