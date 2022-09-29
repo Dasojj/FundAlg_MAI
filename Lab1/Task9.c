@@ -20,6 +20,7 @@ int main(){
 	scanf("%d", &base);
 	if (base < 2 || base > 36){
 		printf("Некорректный ввод!");
+		return 0;
 	}
 	printf("Введите числа: ");
 	while (strcmp(numbers, "Stop")){
