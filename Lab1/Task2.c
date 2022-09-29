@@ -24,10 +24,10 @@ float quad_solution(int a, int b, int c) {
 		printf("x1=%.3f\n",x1); 
 		printf("x2=%.3f\n",x2); 
 	}
-	if (d<0) {
+	else if (d<0) {
 		printf("No real roots\n");
 	}
-	if (d==0) {
+	else {
 	x1=(-b+sqrt(d))/(2*a);
 	printf("x1=x2=%.3f\n", x1);
 	}

@@ -27,7 +27,7 @@ int main(){
             for (int i = 0; i < len / 2; i++){
             	new_mas[i] = mas1[2 * i + 1];
             	printf("%d ", new_mas[i]);
-        }
+            }
         break;
         case 2:
             for (int i = 0; i < len; i++){
