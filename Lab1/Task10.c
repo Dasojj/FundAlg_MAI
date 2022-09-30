@@ -72,7 +72,11 @@ double find_determinant(int **arr, int n){
             return arr[0][0] * arr[1][1] - arr[0][1] * arr[1][0];
             break;
         default:
-            subarr = (int**)malloc(n-1 * sizeof(int*));
+            subarr = (int**)malloc((n-1) * sizeof(int*));
+            if (!subarr) {
+                fprintf(stderr, "malloc() failed: insufficient memory!\n");
+                return 0;
+            }
             det = 0;
             s = 1;
             for(int i = 0; i < n; i++){
