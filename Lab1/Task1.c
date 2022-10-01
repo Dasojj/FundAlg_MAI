@@ -7,11 +7,6 @@ void print_by_num(unsigned int num) {
 	printf("%d ", num%10);
 	return;
 }
-int power(int x, int n) {
-	if(n == 0) return 1;
-	if(n < 0) return power (1/x, -n);
-	return x * power(x, n-1);
-}
 unsigned int ston(char* s){
 	unsigned int num = 0;
 	while(*s)
@@ -63,9 +58,11 @@ int main(int argc, char** argv) {
 	else if (!strcmp(argv[1], "-e")) {
 		if(num > 10 || num == 0) printf("Incorrect number for this argument\n");
 		else{
-			for(int i = 1; i <= num; i++){
-				for(int j = 1; j <= 10; j++){
-					printf("%d ", power(j, i));
+			for(int i = 1; i <= 10; i++){
+				int p = i;
+				for(int j = 1; j <= num; j++){
+					printf("%d ", p);
+					p *= i;
 				}
 				printf("\n");
 			}
