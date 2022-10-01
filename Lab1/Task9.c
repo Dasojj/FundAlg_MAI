@@ -15,7 +15,7 @@ int is_number(char l){
 int main(){
 	int base; 
 	int max = 0;
-	char numbers[34], maxnumber[34];
+	char numbers[50], maxnumber[50];
 	printf("Введите систему счисления: ");
 	scanf("%d", &base);
 	if (base < 2 || base > 36){
@@ -40,8 +40,8 @@ int main(){
 	}
 	printf("Максимальное по модулю число в %d системе счисления: %s\n", base, maxnumber);
 	printf("Оно в десятичной системе: %d\n", max);
-	char str[34];
-	for (int i = 9; i <= 36; i += 9){
+	char str[50];
+	for (int i = 9; i <= 50; i += 9){
 		int r;
 		base = i;
 		int temp = max;
