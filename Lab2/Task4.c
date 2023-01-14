@@ -9,16 +9,18 @@ double geometric_mean(int num_args, ...) {
     va_start(args, num_args);
     for (int i = 0; i < num_args; i++) {
         x = va_arg(args, double);
+        if(x < 0){
+            return -1;
+            break;
+        }
         product *= x;
     }
     va_end(args);
     return pow(product, 1.0 / num_args);
 }
 
-double Power(double base, int power){
-    if(power == 0) return 1;
-    else if(power > 0) return base * Power(base, power - 1);
-    else return 1.0/Power(base, -power);
+double Power(double base, double power){
+    return exp(power * log(base));
 }
 
 int main(){
