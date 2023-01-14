@@ -5,8 +5,16 @@
 
 int main() {
     char str[1000];
-    FILE *input = fopen("input.txt", "r");
-    FILE *output = fopen("output.txt", "w");
+    FILE *input;
+    if((input = fopen("input.txt", "r"))==NULL){
+        printf("File opening failed\n");
+        return 0;
+    }
+    FILE *output;
+    if((output = fopen("output.txt", "w"))==NULL){
+        printf("File opening failed\n");
+        return 0;
+    }
     while (fscanf(input, "%s", str) != EOF) {
         int base = 2;
         while (base <= 36) {
