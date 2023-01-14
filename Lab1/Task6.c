@@ -8,12 +8,13 @@ int main() {
     FILE *input;
     if((input = fopen("input.txt", "r"))==NULL){
         printf("File opening failed\n");
-        return 0;
+        return -1;
     }
     FILE *output;
     if((output = fopen("output.txt", "w"))==NULL){
         printf("File opening failed\n");
-        return 0;
+        fclose(input);
+        return -2;
     }
     while (fscanf(input, "%s", str) != EOF) {
         int base = 2;
