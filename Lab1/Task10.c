@@ -1,16 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int **create_matrix(int lines, int columns){
+double **create_matrix(int lines, int columns){
     if(lines > 10 || lines < 1) return NULL;
     if(columns > 10 || columns < 1) return NULL;
-    int **arr = (int**)malloc(lines * sizeof(int*));
+    double **arr = (double**)malloc(lines * sizeof(double*));
     if (!arr) {
         fprintf(stderr, "malloc() failed: insufficient memory!\n");
         return NULL;
     }
     for(int i = 0; i < lines; i++){
-        arr[i] = (int*)malloc(columns * sizeof(int));
+        arr[i] = (double*)malloc(columns * sizeof(double));
         if (!arr[i]) {
             fprintf(stderr, "malloc() failed: insufficient memory!\n");
             return NULL;
@@ -20,14 +20,14 @@ int **create_matrix(int lines, int columns){
     }
     return arr;
 }
-int **create_empty_matrix(int lines, int columns){
-    int **arr = (int**)malloc(lines * sizeof(int*));
+double **create_empty_matrix(int lines, int columns){
+    double **arr = (double**)malloc(lines * sizeof(double*));
     if (!arr) {
         fprintf(stderr, "malloc() failed: insufficient memory!\n");
         return NULL;
     }
     for(int i = 0; i < lines; i++){
-        arr[i] = (int*)malloc(columns * sizeof(int));
+        arr[i] = (double*)malloc(columns * sizeof(double));
         if (!arr[i]) {
             fprintf(stderr, "malloc() failed: insufficient memory!\n");
             return NULL;
@@ -37,19 +37,19 @@ int **create_empty_matrix(int lines, int columns){
 }
 
 
-void free_arr(int ***arr, int lines){
+void free_arr(double ***arr, int lines){
     for(int i = 0; i < lines; i++){
         free((*arr)[i]);
     }
     free(*arr);
 }
 
-int **matrix_equation(int **arr1, int **arr2, int l1, int c1, int l2, int c2){
+double **matrix_equation(double **arr1, double **arr2, int l1, int c1, int l2, int c2){
     if(c1 != l2){
         printf("Эти матрицы невозможно умножить\n");
         return NULL;
     }
-    int **C = create_empty_matrix(l1, c2);
+    double **C = create_empty_matrix(l1, c2);
     for(int i = 0; i < l1; i++){
         for(int j = 0; j < c2; j++){
             C[i][j] = 0;
@@ -60,44 +60,61 @@ int **matrix_equation(int **arr1, int **arr2, int l1, int c1, int l2, int c2){
     return C;
 }
 
-double find_determinant(int **arr, int n){
-    double det;
-    int subj, s;
-    int **subarr;
-    switch(n){
-        case 1:
-            return arr[0][0];
-            break;
-        case 2:
-            return arr[0][0] * arr[1][1] - arr[0][1] * arr[1][0];
-            break;
-        default:
-            subarr = (int**)malloc((n-1) * sizeof(int*));
-            if (!subarr) {
-                fprintf(stderr, "malloc() failed: insufficient memory!\n");
-                return 0;
+double find_determinant(double **mat, int n) {
+    int i, j, k;
+    double tmp, det = 1;
+    for(i = 0; i < n; i++) {
+        for(j = i + 1; j < n; j++) {
+            tmp = mat[j][i] / mat[i][i];
+            for(k = i; k < n; k++) {
+                mat[j][k] -= mat[i][k] * tmp;
             }
-            det = 0;
-            s = 1;
-            for(int i = 0; i < n; i++){
-                subj = 0;
-                for(int j = 0; j < n; j++)
-                    if(i != j) subarr[subj++] = arr[j] + 1;
-                det += s * arr[i][0] * find_determinant(subarr, n - 1);
-                s = -s;
-            }
-            for(int i = 0; i < n; i++) free(subarr[i]);
-            free(subarr);
-            return det;
-            break;
+        }
     }
+    for(i = 0; i < n; i++) {
+        det *= mat[i][i];
+    }
+    return det;
 }
+
+// double find_determinant(double **arr, int n){
+//     double det;
+//     int subj, s;
+//     double **subarr;
+//     switch(n){
+//         case 1:
+//             return arr[0][0];
+//             break;
+//         case 2:
+//             return arr[0][0] * arr[1][1] - arr[0][1] * arr[1][0];
+//             break;
+//         default:
+//             subarr = (double**)malloc((n-1) * sizeof(double*));
+//             if (!subarr) {
+//                 fprintf(stderr, "malloc() failed: insufficient memory!\n");
+//                 return 0;
+//             }
+//             det = 0;
+//             s = 1;
+//             for(int i = 0; i < n; i++){
+//                 subj = 0;
+//                 for(int j = 0; j < n; j++)
+//                     if(i != j) subarr[subj++] = arr[j] + 1;
+//                 det += s * arr[i][0] * find_determinant(subarr, n - 1);
+//                 s = -s;
+//             }
+//             for(int i = 0; i < n; i++) free(subarr[i]);
+//             free(subarr);
+//             return det;
+//             break;
+//     }
+// }
 
 int main(){
     int action;
-    int **matrix1 = NULL;
-    int **matrix2 = NULL;
-    int **eq_matrix = NULL;
+    double **matrix1 = NULL;
+    double **matrix2 = NULL;
+    double **eq_matrix = NULL;
     double determinant;
     int l1, c1, l2, c2;
     while(1){
@@ -127,7 +144,7 @@ int main(){
                 eq_matrix = matrix_equation(matrix1, matrix2, l1, c1, l2, c2);
                 for(int i = 0; i < l1; i++){
                     for(int j = 0; j < c2; j++){
-                        printf("%d ", eq_matrix[i][j]);
+                        printf("%lf ", eq_matrix[i][j]);
                     }
                     printf("\n");
                 }
