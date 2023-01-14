@@ -20,6 +20,7 @@ void push_back(char** buff, char* element){
 	*buff = malloc(len1 + len2 + 1);
 	if (!*buff) {
         fprintf(stderr, "malloc() failed: insufficient memory!\n");
+        free(temp);
         return;
     }
 	memcpy(*buff, temp, len1 + len2 + 1);
