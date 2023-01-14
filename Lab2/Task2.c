@@ -34,12 +34,13 @@ int len(char *str){
     return lens;
 }
 
-char *reversed(char *str){
-    int l = len(str);
-    char* reverse = malloc(l);
-    for(int i = 0; i < l; i++)
-        reverse[l - i - 1] = str[i];
-    return reverse;
+void reverse_string(char *str) {
+    int i, j;
+    for (i = 0, j = strlen(str) - 1; i < j; i++, j--) {
+        char temp = str[i];
+        str[i] = str[j];
+        str[j] = temp;
+    }
 }
 
 char toUpper(char ch){
@@ -78,15 +79,14 @@ int main(int argc, char **argv){
         printf("Длина строки: %d\n", len(argv[2]));
     }
     else if(!strcmp(argv[1], "-r")){
-        argv[2] = reversed(argv[2]);
+        reverse_string(argv[2]);
         while(*argv[2]) printf("%c", *argv[2]++);
         printf("\n");
     }
     else if(!strcmp(argv[1], "-u")){
-        int l = len(argv[2]);
-        for(int i = 0; i < l; i++)
+        for(int i = 0; i < strlen(argv[2]); i++)
             if(i%2 == 1) argv[2][i] = toUpper(argv[2][i]);
-        for(int i = 0; i < l; i++) printf("%c", argv[2][i]);
+        for(int i = 0; i < strlen(argv[2]); i++) printf("%c", argv[2][i]);
         printf("\n");
     }
     else if(!strcmp(argv[1], "-n")){
