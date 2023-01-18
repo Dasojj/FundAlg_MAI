@@ -1,122 +1,104 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-double **create_matrix(int lines, int columns){
-    if(lines > 10 || lines < 1) return NULL;
-    if(columns > 10 || columns < 1) return NULL;
-    double **arr = (double**)malloc(lines * sizeof(double*));
-    if (!arr) {
-        fprintf(stderr, "malloc() failed: insufficient memory!\n");
-        return NULL;
-    }
-    for(int i = 0; i < lines; i++){
-        arr[i] = (double*)malloc(columns * sizeof(double));
-        if (!arr[i]) {
-            fprintf(stderr, "malloc() failed: insufficient memory!\n");
-            return NULL;
-        }
-        for(int j = 0; j < columns; j++)
-            arr[i][j] = rand() % 201 - 100;
-    }
-    return arr;
-}
-double **create_empty_matrix(int lines, int columns){
-    double **arr = (double**)malloc(lines * sizeof(double*));
-    if (!arr) {
-        fprintf(stderr, "malloc() failed: insufficient memory!\n");
-        return NULL;
-    }
-    for(int i = 0; i < lines; i++){
-        arr[i] = (double*)malloc(columns * sizeof(double));
-        if (!arr[i]) {
-            fprintf(stderr, "malloc() failed: insufficient memory!\n");
-            return NULL;
+struct dynamic_matrix {
+    double **matrix;
+    int rows;
+    int columns;
+};
+
+typedef struct dynamic_matrix dynamic_matrix;
+
+int init_matrix(dynamic_matrix *matrix, int rows, int columns) {
+    matrix->matrix = (double **)malloc(rows * sizeof(double *));
+    if (matrix->matrix == NULL) return 0;
+    for (int i = 0; i < rows; i++) {
+        matrix->matrix[i] = (double *)malloc(columns * sizeof(double));
+        if (matrix->matrix[i] == NULL) {
+            for (int j = 0; j < i; j++) {
+                free(matrix->matrix[j]);
+            }
+            free(matrix->matrix);
+            return 0;
         }
     }
-    return arr;
+    matrix->rows = rows;
+    matrix->columns = columns;
+    return 1;
 }
 
-
-void free_arr(double ***arr, int lines){
-    for(int i = 0; i < lines; i++){
-        free((*arr)[i]);
-    }
-    free(*arr);
-}
-
-double **matrix_equation(double **arr1, double **arr2, int l1, int c1, int l2, int c2){
-    if(c1 != l2){
-        printf("Эти матрицы невозможно умножить\n");
-        return NULL;
-    }
-    double **C = create_empty_matrix(l1, c2);
-    for(int i = 0; i < l1; i++){
-        for(int j = 0; j < c2; j++){
-            C[i][j] = 0;
-            for(int k = 0; k < c1; k++)
-                C[i][j] += arr1[i][k] * arr2[k][j];
+void fill_random(dynamic_matrix *matrix) {
+    for (int i = 0; i < matrix->rows; i++) {
+        for (int j = 0; j < matrix->columns; j++) {
+            matrix->matrix[i][j] = rand() % 201 - 100;
         }
     }
-    return C;
 }
 
-double find_determinant(double **mat, int n) {
-    int i, j, k;
-    double tmp, det = 1;
-    for(i = 0; i < n; i++) {
-        for(j = i + 1; j < n; j++) {
-            tmp = mat[j][i] / mat[i][i];
-            for(k = i; k < n; k++) {
-                mat[j][k] -= mat[i][k] * tmp;
+void free_matrix(dynamic_matrix *matrix) {
+    if(matrix->matrix == NULL) return;
+    for (int i = 0; i < matrix->rows; i++) {
+        free(matrix->matrix[i]);
+    }
+    free(matrix->matrix);
+    matrix->matrix = NULL;
+}
+
+dynamic_matrix matrix_equation(const dynamic_matrix *matrix1, const dynamic_matrix *matrix2) {
+    if(matrix1->columns != matrix2->rows) {
+        dynamic_matrix empty = {NULL, 0, 0};
+        return empty;
+    }
+    dynamic_matrix result;
+    if(!init_matrix(&result, matrix1->rows, matrix2->columns)) {
+        dynamic_matrix empty = {NULL, 0, 0};
+        return empty;
+    }
+    for(int i = 0; i < matrix1->rows; i++) {
+        for(int j = 0; j < matrix2->columns; j++) {
+            result.matrix[i][j] = 0;
+            for(int k = 0; k < matrix1->columns; k++) {
+                result.matrix[i][j] += matrix1->matrix[i][k] * matrix2->matrix[k][j];
             }
         }
     }
-    for(i = 0; i < n; i++) {
-        det *= mat[i][i];
+    return result;
+}
+
+double find_determinant(const dynamic_matrix *mat) {
+    if(mat->rows != mat->columns) return 0;
+    int i, j, k;
+    double tmp, det = 1;
+    for(i = 0; i < mat->rows; i++) {
+        for(j = i + 1; j < mat->rows; j++) {
+            tmp = mat->matrix[j][i] / mat->matrix[i][i];
+            for(k = i; k < mat->rows; k++) {
+                mat->matrix[j][k] -= mat->matrix[i][k] * tmp;
+            }
+        }
+    }
+    for(i = 0; i < mat->rows; i++) {
+        det *= mat->matrix[i][i];
     }
     return det;
 }
 
-// double find_determinant(double **arr, int n){
-//     double det;
-//     int subj, s;
-//     double **subarr;
-//     switch(n){
-//         case 1:
-//             return arr[0][0];
-//             break;
-//         case 2:
-//             return arr[0][0] * arr[1][1] - arr[0][1] * arr[1][0];
-//             break;
-//         default:
-//             subarr = (double**)malloc((n-1) * sizeof(double*));
-//             if (!subarr) {
-//                 fprintf(stderr, "malloc() failed: insufficient memory!\n");
-//                 return 0;
-//             }
-//             det = 0;
-//             s = 1;
-//             for(int i = 0; i < n; i++){
-//                 subj = 0;
-//                 for(int j = 0; j < n; j++)
-//                     if(i != j) subarr[subj++] = arr[j] + 1;
-//                 det += s * arr[i][0] * find_determinant(subarr, n - 1);
-//                 s = -s;
-//             }
-//             for(int i = 0; i < n; i++) free(subarr[i]);
-//             free(subarr);
-//             return det;
-//             break;
-//     }
-// }
+void print_matrix(const dynamic_matrix *matrix) {
+    for (int i = 0; i < matrix->rows; i++) {
+        for (int j = 0; j < matrix->columns; j++) {
+            printf("%lf ", matrix->matrix[i][j]);
+        }
+        printf("\n");
+    }
+}
 
 int main(){
     int action;
-    double **matrix1 = NULL;
-    double **matrix2 = NULL;
-    double **eq_matrix = NULL;
+    dynamic_matrix matrix1;
+    dynamic_matrix matrix2;
+    dynamic_matrix eq_matrix;
     double determinant;
-    int l1, c1, l2, c2;
+    int r, c;
     while(1){
         printf("Меню:\n");
         printf("1.Сгенерировать матрицу в слот 1\n");
@@ -124,51 +106,56 @@ int main(){
         printf("3.Умножить матрицу из слота 1 на матрицу из слота 2\n");
         printf("4.Вычислить определитель произведения матриц\n");
         printf("5.Освободить слот\n");
+        printf("6.Завершить программу\n");
         scanf("%d", &action);
         switch(action){
             case 1:
                 printf("Введите количество строк матрицы:\n");
-                scanf("%d", &l1);
+                scanf("%d", &r);
                 printf("Введите количество столбцов матрицы:\n");
-                scanf("%d", &c1);
-                matrix1 = create_matrix(l1, c1);
+                scanf("%d", &c);
+                if(!init_matrix(&matrix1, r, c)) printf("Error initializing matrix");
+                else fill_random(&matrix1);
                 break;
             case 2:
                 printf("Введите количество строк матрицы:\n");
-                scanf("%d", &l2);
+                scanf("%d", &r);
                 printf("Введите количество столбцов матрицы:\n");
-                scanf("%d", &c2);
-                matrix2 = create_matrix(l2, c2);
+                scanf("%d", &c);
+                if(!init_matrix(&matrix2, r, c)) printf("Error initializing matrix");
+                else fill_random(&matrix2);
                 break;
             case 3:
-                eq_matrix = matrix_equation(matrix1, matrix2, l1, c1, l2, c2);
-                for(int i = 0; i < l1; i++){
-                    for(int j = 0; j < c2; j++){
-                        printf("%lf ", eq_matrix[i][j]);
-                    }
-                    printf("\n");
+                eq_matrix = matrix_equation(&matrix1, &matrix2);
+                if(eq_matrix.matrix == NULL){
+                    printf("Error equationing matrix\n");
+                    break;
                 }
+                print_matrix(&eq_matrix);
                 break;
             case 4:
-                if(l1 != c2) printf("Матрица не квадратная - определитель не может быть найден\n");
-                else{
-                    determinant = find_determinant(eq_matrix, l1);
-                    printf("Определитель: %f\n", determinant);
-                }
+                determinant = find_determinant(&eq_matrix);
+                printf("Определитель: %f\n", determinant);
                 break;
             case 5:
                 printf("Введите номер слота для освобождения:\n");
                 int slot_to_free;
                 scanf("%d", &slot_to_free);
                 if(slot_to_free == 1){
-                    free_arr(&matrix1, l1);
+                    free_matrix(&matrix1);
                     printf("Освобождено\n");
                 }
                 else if(slot_to_free == 2){
-                    free_arr(&matrix2, l2);
+                    free_matrix(&matrix1);
                     printf("Освобождено\n");
                 }
                 else printf("Освободить можно только слот 1, или слот 2\n");
+                break;
+            case 6:
+                free_matrix(&matrix1);
+                free_matrix(&matrix2);
+                free_matrix(&eq_matrix);
+                exit(0);
                 break;
             default:
                 printf("Неверная функция\n");
