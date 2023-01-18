@@ -39,10 +39,15 @@ char* addInBase(int base, int num_args, ...) {
     if(base > 36) return "Base is too big";
     va_list args;
     va_start(args, num_args);
-    char* result = "0";
+    char* result = va_arg(args, char*);
+    char* num = va_arg(args, char*);
+    result = addStringsInBase(result, num, base);
+    num_args-=2;
     while (num_args--) {
         char* num = va_arg(args, char*);
+        char* old_result = result;
         result = addStringsInBase(result, num, base);
+        free(old_result);
     }
     va_end(args);
     return result;
@@ -53,6 +58,7 @@ int main() {
     //base can't be bigger then 36 (26 latin symbols and 10 num symbols)
     result = addInBase(16, 3, "AB", "1E", "F");
     printf("Sum in base 16: %s\n", result);
+    free(result);
     result = addInBase(2, 3, "1011", "1111", "1010");
     printf("Sum in base 2: %s\n", result);
     return 0;
