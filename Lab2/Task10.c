@@ -1,52 +1,45 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <math.h>
+#include <limits.h>
 
-double convert_to_base(double decimal, int to_base) {
-    double old = decimal;
-    int i;
-    double result = 0;
-    for (i = 1; i <= 10; i++) {
-        double x = decimal * to_base;
-        int integer_part = (int) x;
-        result = result + integer_part * pow(0.1, i);
-        decimal = x - integer_part;
+int check_finite(double decimal, int base) {
+    if(base == 10) return 1;
+    int i = 0;
+    double fraction = decimal - (int)decimal;
+    while (fraction != 0) {
+        fraction *= base;
+        if (fraction >= 1) fraction -= 1;
+        i++;
+        if (i > log(INT_MAX)/log(base) + 1) return 0;
     }
-    return result;
+    return 1;
 }
 
-double convert_to_decimal(int fraction, int base) {
-    while(fraction % 10 == 0) fraction /= 10;
-    double result = 0;
-    int i = -1;
-    int remainder = 0;
-    while (fraction > 0) {
-        remainder = fraction % 10;
-        fraction = fraction / 10;
-        result += remainder * pow(base, i);
-        i--;
-    }
-    return result;
-}
-
-void print_has_finite_representation(int base, int count, ...) {
+double* has_finite_representation(int base, int count, int* finite_count, ...) {
     va_list args;
-    va_start(args, count);
-    double decimal;
-    for (int i = 0; i < count; i++) {
-        decimal = va_arg(args, double);
-        double decimalInbase = convert_to_base(decimal, base);
-        double decimalAfterbase = convert_to_decimal((int)round(decimalInbase * 1e6), base);
-        if (decimal != decimalAfterbase){
-            printf("Fraction %lf does not have a finite representation in base %d\n", decimal, base);
-        } else {
-            printf("Fraction %lf has a finite representation in base %d\n", decimal, base);
+    va_start(args, finite_count);
+    double* finite_numbers = (double*)malloc(count * sizeof(double));
+    int index = 0;
+    for(int i = 0; i < count; i++){
+        double x = va_arg(args, double);
+        if(check_finite(x, base)){
+            finite_numbers[index] = x;
+            index++;
         }
     }
     va_end(args);
+    *finite_count = index;
+    return finite_numbers;
 }
 
 int main() {
-    print_has_finite_representation(2, 2, 0.625, 0.1);
+    int finite_count = 0;
+    int base = 2;
+    double* res = has_finite_representation(base, 2, &finite_count, 0.625, 0.1);
+    for(int i = 0; i < finite_count; i++){
+        printf("Number %lf is finite in base %d\n", res[i], base);
+    }
     return 0;
 }
