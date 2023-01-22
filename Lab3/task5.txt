@@ -1,0 +1,4 @@
+3
+1 John Smith 2 Group1 3 4 4 3
+2 Jane Doe 3 Group2 4 3 2 5
+3 Michael Brown 1 Group3 4 4 5 2
