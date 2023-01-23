@@ -175,9 +175,9 @@ void free_residents(struct Resident* head) {
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     // Load residents from file
-    struct Resident *residents = load_residents_from_file("residents.txt");
+    struct Resident *residents = load_residents_from_file();
 
     // Sort the list of residents by age
     residents = sort_residents_by_age(residents);
