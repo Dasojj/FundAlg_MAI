@@ -114,6 +114,11 @@ int main(int argc, char* argv[]) {
             print_student(groups[i][j]);
         }
     }
+    //Clear students
+    free(students);
+    //Clear groups
+    for (int i = 0; i < 4; i++) free(groups[i]);
+    free(groups);
     return 0;
 }
 
