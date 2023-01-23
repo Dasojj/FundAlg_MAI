@@ -9,6 +9,10 @@ char* addStringsInBase(char* num1, char* num2, int base) {
     int maxLen = (len1 > len2) ? len1 : len2;
     int carry = 0;
     char* result = (char*)malloc((maxLen + 2) * sizeof(char));
+    if (!result) {
+        fprintf(stderr, "malloc() failed: insufficient memory!\n");
+        return NULL;
+    }
     int i, j, k = 0;
     for (i = 0; i < maxLen; i++) {
         result[i] = '0';
@@ -36,7 +40,15 @@ char* addStringsInBase(char* num1, char* num2, int base) {
 }
 
 char* addInBase(int base, int num_args, ...) {
-    if(base > 36) return "Base is too big";
+    if(base > 36) {
+        char* output_string = (char*) malloc(16 * sizeof(char));
+        if (!output_string) {
+            fprintf(stderr, "malloc() failed: insufficient memory!\n");
+            return NULL;
+        }
+        strcpy(output_string, "Base is too big");
+        return output_string;
+    }
     va_list args;
     va_start(args, num_args);
     char* result = va_arg(args, char*);
@@ -47,6 +59,7 @@ char* addInBase(int base, int num_args, ...) {
         char* num = va_arg(args, char*);
         char* old_result = result;
         result = addStringsInBase(result, num, base);
+        if(!result) return NULL;
         free(old_result);
     }
     va_end(args);
