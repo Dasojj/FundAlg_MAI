@@ -48,12 +48,12 @@ namespace bgnt {
 
     class bigint_multiplication {
     public:
-        virtual bigint multiply(const bigint& left_multiplier, const bigint& right_multiplier) const = 0;
+        // virtual bigint multiply(const bigint& left_multiplier, const bigint& right_multiplier) const = 0;
     };
 
     class bigint_division {
     public:
-        virtual bigint divide(const bigint& dividend, const bigint& divider) const = 0;
+        // virtual bigint divide(const bigint& dividend, const bigint& divider) const = 0;
     };
 
     class bigint_iterator {
