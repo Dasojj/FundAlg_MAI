@@ -4,7 +4,7 @@
 class logger {
 public:
     enum severity { trace, debug, information, warning, error, critical };
-    virtual logger& log(const std::string& target, severity level) const = 0;
+    virtual logger* log(const std::string& target, severity level) const = 0;
 };
 
 class memory {
