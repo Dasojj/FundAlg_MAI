@@ -1,80 +1,108 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <memory>
 #include <string>
-#include <vector>
+#include <map>
+#include <ctime>
 #include "Task0.h"
 
 class stream_logger : public logger {
 private:
-    std::vector<std::ostream*> streams_;
-    logger::severity min_severity_;
+    static std::map<std::string, std::pair<std::ostream*, size_t>> streams_;
+    std::map<std::string, std::pair<std::ostream*, logger::severity>> current_streams_;
 public:
-    explicit stream_logger(std::vector<std::ostream*> streams, logger::severity min_severity) : streams_(streams), min_severity_(min_severity) {}
+    explicit stream_logger(std::map<std::string, logger::severity> const & targets) {
+        for(auto & target : targets){
+            auto new_stream = streams_.find(target.first);
+            std::ostream *stream = nullptr;
+            if(new_stream == streams_.end()){
+                if(target.first == "console") stream = &(std::cout);
+                else stream = new std::ofstream(target.first);
+                streams_.insert(std::make_pair(target.first, std::make_pair(stream, 1)));
+            }
+            else{
+                stream = new_stream->second.first;
+                new_stream->second.second++;
+            }
+            current_streams_.insert(std::make_pair(target.first, std::make_pair(stream, target.second)));
+        }
+    }
+
     logger* log(const std::string& target, severity level) const override {
-        for(auto strm : streams_){
-            if (level >= min_severity_ && strm) {
+        auto t_now = std::time(nullptr);
+        auto t_local = *std::localtime(&t_now);
+        for(auto strm : current_streams_){
+            if (level >= strm.second.second && strm.second.first) {
+                *(strm.second.first) << "[" << std::put_time(&t_local, "%d/%m/%Y %H:%M:%S") << "]";
                 switch (level) {
                     case trace:
-                        *strm << "TRACE: ";
+                        *(strm.second.first) << "[TRACE] ";
                         break;
                     case debug:
-                        *strm << "DEBUG: ";
+                        *(strm.second.first) << "[DEBUG] ";
                         break;
                     case information:
-                        *strm << "INFO: ";
+                        *(strm.second.first) << "[INFO] ";
                         break;
                     case warning:
-                        *strm << "WARNING: ";
+                        *(strm.second.first) << "[WARNING] ";
                         break;
                     case error:
-                        *strm << "ERROR: ";
+                        *(strm.second.first) << "[ERROR] ";
                         break;
                     case critical:
-                        *strm << "CRITICAL: ";
+                        *(strm.second.first) << "[CRITICAL] ";
                         break;
                     default:
                         break;
                 }
-                *strm << "[" << target << "] \n";
+                *(strm.second.first) << target << std::endl;
             }
         }
         return const_cast<stream_logger*>(this);
     }
+
+    ~stream_logger(){
+        for(auto & current_stream : current_streams_){
+            auto global_stream = streams_.find(current_stream.first);
+            if(global_stream != streams_.end()){
+                if (--(global_stream->second.second) == 0){
+                    if (global_stream->second.first != nullptr){
+                        global_stream->second.first->flush();
+                        if(global_stream->first != "console"){
+                            static_cast<std::ofstream*>(global_stream->second.first)->close();
+                            delete global_stream->second.first;
+                        }
+                    }
+                    streams_.erase(global_stream);
+                }
+            }
+        }
+    }
 };
+
+std::map<std::string, std::pair<std::ostream*, size_t>> stream_logger::streams_ = std::map<std::string, std::pair<std::ostream*, size_t>>();
 
 class logger_builder {
 private:
-    std::vector<std::ostream*> streams_;
-    std::ostream* stream_ = nullptr;
-    std::ofstream file_stream_;
-    logger::severity min_severity_ = logger::information;
+    std::map<std::string, logger::severity> built_info_;
 public:
     logger_builder() = default;
     logger_builder(const logger_builder& other) {
-        min_severity_ = other.min_severity_;
-        streams_ = other.streams_;
-        // file_stream_ = other.file_stream_;
+        built_info_ = other.built_info_;
     }
-
-    logger_builder& console() {
-        stream_ = &std::cout;
-        streams_.push_back(stream_);
+    logger_builder& add_stream(const std::string& output, logger::severity min_sev) {
+        built_info_[output] = min_sev;
         return *this;
     }
-    logger_builder& file(const std::string& filename) {
-        file_stream_.open(filename);
-        stream_ = &file_stream_;
-        streams_.push_back(stream_);
+    logger_builder& clear() {
+        built_info_.clear();
         return *this;
     }
-    logger_builder& severity(logger::severity min_severity) {
-        min_severity_ = min_severity;
-        return *this;
-    }
-    std::unique_ptr<logger> build() {
-        return std::make_unique<stream_logger>(streams_, min_severity_);
+    stream_logger* build() {
+        return new stream_logger(built_info_);
     }
 };
 
@@ -96,27 +124,10 @@ public:
                 continue;
             }
             std::istringstream iss(line);
-            std::string key;
-            iss >> key;
-            if (key == "output") {
-                std::string output;
-                iss >> output;
-                if (output == "console") {
-                    builder_.console();
-                } else if (output == "file") {
-                    std::string filename;
-                    iss >> filename;
-                    builder_.file(filename);
-                } else {
-                    std::cerr << "Invalid output type: " << output << std::endl;
-                }
-            } else if (key == "level") {
-                int level;
-                iss >> level;
-                builder_.severity(static_cast<logger::severity>(level));
-            } else {
-                std::cerr << "Invalid config key: " << key << std::endl;
-            }
+            int level;
+            std::string output;
+            iss >> level >> output;
+            builder_.add_stream(output, static_cast<logger::severity>(level));
         }
         return builder_;
     }
@@ -125,12 +136,25 @@ public:
 int main() {
     config_parser parser;
     logger_builder builder = parser.parse_config_file("logger_config.txt");
-    std::unique_ptr<logger> log = builder.build();
-    log->log("Example log message (level trace)", logger::severity::trace)
+    stream_logger* log1 = builder.build();
+
+    builder.clear().add_stream("pppp.txt", logger::error).add_stream("aaaa.txt", logger::debug);
+    stream_logger* log2 = builder.build();
+    
+    log1->log("Example log message (level trace)", logger::severity::trace)
        ->log("Example log message (level debug)", logger::severity::debug)
        ->log("Example log message (level info)", logger::severity::information)
        ->log("Example log message (level warning)", logger::severity::warning)
        ->log("Example log message (level error)", logger::severity::error)
        ->log("Example log message (level critical)", logger::severity::critical);
+    delete log1;
+
+    log2->log("Example log2 message (level trace)", logger::severity::trace)
+       ->log("Example log2 message (level debug)", logger::severity::debug)
+       ->log("Example log2 message (level info)", logger::severity::information)
+       ->log("Example log2 message (level warning)", logger::severity::warning)
+       ->log("Example log2 message (level error)", logger::severity::error)
+       ->log("Example log2 message (level critical)", logger::severity::critical);
+    delete log2;
     return 0;
 }
