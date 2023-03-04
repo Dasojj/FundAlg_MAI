@@ -85,18 +85,11 @@ public:
 
 std::map<std::string, std::pair<std::ostream*, size_t>> stream_logger::streams_ = std::map<std::string, std::pair<std::ostream*, size_t>>();
 
-class logger_builder {
+class logger_builder final {
 private:
     std::map<std::string, logger::severity> built_info_;
 public:
     logger_builder() = default;
-    logger_builder(const logger_builder& other) {
-        built_info_ = other.built_info_;
-    }
-    logger_builder& operator=(const logger_builder& other) {
-        built_info_ = other.built_info_;
-        return *this;
-    }
     logger_builder& add_stream(const std::string& output, logger::severity min_sev) {
         built_info_[output] = min_sev;
         return *this;
@@ -110,7 +103,7 @@ public:
     }
 };
 
-class config_parser {
+class config_parser final {
 private:
     logger_builder builder_;
 public:
