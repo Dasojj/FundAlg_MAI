@@ -1,3 +1,0 @@
-# test configuration
-2 console
-3 pppp.txt
