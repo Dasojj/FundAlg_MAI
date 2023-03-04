@@ -93,6 +93,10 @@ public:
     logger_builder(const logger_builder& other) {
         built_info_ = other.built_info_;
     }
+    logger_builder& operator=(const logger_builder& other) {
+        built_info_ = other.built_info_;
+        return *this;
+    }
     logger_builder& add_stream(const std::string& output, logger::severity min_sev) {
         built_info_[output] = min_sev;
         return *this;

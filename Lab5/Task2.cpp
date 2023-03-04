@@ -13,17 +13,23 @@ public:
         builder.add_stream("console", logger::error).add_stream("task2log.txt", logger::information);
         log = builder.build();
     }
+    allocator(const allocator& obj) {
+        builder = obj.builder;
+    }
+    allocator& operator=(const allocator& obj){
+        builder = obj.builder;
+        return *this;
+    }
     void* allocate(size_t target_size) const override {
-        void* ptr = ::operator new(target_size);
-        if(!ptr){
+        void* ptr = nullptr;
+        try { ptr = ::operator new(target_size); }
+        catch(...){
             log->log("Error allocating memory", logger::error);
         }
-        else{
-            std::string memory_info;
-            std::ostringstream info_stream(memory_info);
-            info_stream << "Allocated memory with adress <" << ptr << ">";
-            log->log(memory_info, logger::information);
-        }
+        std::string memory_info;
+        std::ostringstream info_stream(memory_info);
+        info_stream << "Allocated memory with adress <" << ptr << ">";
+        log->log(memory_info, logger::information);
         return ptr;
     }
     void deallocate(void* target_to_dealloc) const override {
