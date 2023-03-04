@@ -129,6 +129,7 @@ public:
             iss >> level >> output;
             builder_.add_stream(output, static_cast<logger::severity>(level));
         }
+        file.close();
         return builder_;
     }
 };
