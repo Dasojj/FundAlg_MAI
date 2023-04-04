@@ -53,6 +53,8 @@ private:
             }
             current += sizeof(bool) + sizeof(size_t) + *b_size;
         }
+        bool* is_free = reinterpret_cast<bool*>(ok_ptr - (sizeof(bool) + sizeof(size_t)));
+        *is_free = false;
         block_split(ok_ptr, target_size);
         return ok_ptr;
     }
@@ -75,6 +77,8 @@ private:
             }
             current += sizeof(bool) + sizeof(size_t) + *b_size;
         }
+        bool* is_free = reinterpret_cast<bool*>(ok_ptr - (sizeof(bool) + sizeof(size_t)));
+        *is_free = false;
         block_split(ok_ptr, target_size);
         return ok_ptr;
     }
