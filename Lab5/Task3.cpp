@@ -1,135 +1,224 @@
 #include <vector>
 #include <algorithm>
 #include <memory>
+#include <sstream>
+#include "logger.h"
 #include "allocator.h"
 
 class block_allocator : public memory {
 public:
     enum allocation_method { first, best, worst };
 private:
-    allocator* m_alloc;
-    char* m_data;
-    size_t m_size;
-    allocation_method m_method;
-    struct block_info {
-        size_t size;
-        bool is_free;
-    };
-    
+    void* m_data;
+
     void* first_fit(size_t target_size) const {
-        char* current = m_data;
+        void* current = m_data;
+        current += (sizeof(allocation_method) + sizeof(allocator*) + sizeof(logger*));
+        size_t m_size = *reinterpret_cast<size_t*>(current);
+        current += sizeof(size_t);
         while (current < m_data + m_size) {
-            block_info* info = reinterpret_cast<block_info*>(current);
-            if (info->is_free && info->size >= target_size) {
-                info->is_free = false;
-                if (info->size > target_size) {
-                    block_info* next_info = reinterpret_cast<block_info*>(current + target_size + sizeof(block_info));
-                    next_info->is_free = true;
-                    next_info->size = info->size - target_size - sizeof(block_info);
-                    info->size = target_size;
+            bool* is_free = reinterpret_cast<bool*>(current);
+            size_t* b_size = reinterpret_cast<size_t*>(current + sizeof(bool));
+            if ((*is_free) && *b_size >= target_size) {
+                *is_free = false;
+                if (*b_size > target_size + sizeof(bool) + sizeof(size_t)) {
+                    bool* next_is_free = reinterpret_cast<bool*>(current + target_size + sizeof(bool) + sizeof(size_t));
+                    *next_is_free = true;
+                    size_t* next_size = reinterpret_cast<size_t*>(current + target_size + sizeof(bool) + sizeof(size_t) + sizeof(bool));
+                    *next_size = *b_size - target_size - sizeof(bool) - sizeof(size_t);
+                    *b_size = target_size;
                 }
-                return current + sizeof(block_info);
+                return current + sizeof(bool) + sizeof(size_t);
             }
-            current += info->size + sizeof(block_info);
+            current += *b_size + sizeof(bool) + sizeof(size_t);
         }
         return nullptr;
     }
 
     void* best_fit(size_t target_size) const {
-        std::vector<std::pair<size_t, char*>> blocks;
-        char* current = m_data;
+        long min_ok = INT64_MAX;
+        void* ok_ptr = nullptr;
+        void* current = m_data;
+        current += (sizeof(allocation_method) + sizeof(allocator*) + sizeof(logger*));
+        size_t m_size = *reinterpret_cast<size_t*>(current);
+        current += sizeof(size_t);
         while (current < m_data + m_size) {
-            block_info* info = reinterpret_cast<block_info*>(current);
-            if (info->is_free && info->size >= target_size) {
-                blocks.emplace_back(info->size, current);
+            bool* is_free = reinterpret_cast<bool*>(current);
+            size_t* b_size = reinterpret_cast<size_t*>(current + sizeof(bool));
+            if (*is_free && *b_size >= target_size) {
+                if(min_ok > *b_size) {
+                    min_ok = *b_size;
+                    ok_ptr = current + sizeof(bool) + sizeof(size_t);
+                }
             }
-            current += info->size + sizeof(block_info);
+            current += sizeof(bool) + sizeof(size_t) + *b_size;
         }
-        std::sort(blocks.begin(), blocks.end());
-        for (auto& block : blocks) {
-            block_info* info = reinterpret_cast<block_info*>(block.second);
-            if (info->size > target_size) {
-                block_info* next_info = reinterpret_cast<block_info*>(block.second + target_size + sizeof(block_info));
-                next_info->is_free = true;
-                next_info->size = info->size - target_size - sizeof(block_info);
-                info->size = target_size;
-            }
-            info->is_free = false;
-            return block.second + sizeof(block_info);
-        }
-        return nullptr;
+        block_split(ok_ptr, target_size);
+        return ok_ptr;
     }
 
     void* worst_fit(size_t target_size) const {
-        std::vector<std::pair<size_t, char*>> blocks;
-        char* current = m_data;
+        long max_ok = -1;
+        void* ok_ptr = nullptr;
+        void* current = m_data;
+        current += (sizeof(allocation_method) + sizeof(allocator*) + sizeof(logger*));
+        size_t m_size = *reinterpret_cast<size_t*>(current);
+        current += sizeof(size_t);
         while (current < m_data + m_size) {
-            block_info* info = reinterpret_cast<block_info*>(current);
-            if (info->is_free && info->size >= target_size) {
-                blocks.emplace_back(info->size, current);
+            bool* is_free = reinterpret_cast<bool*>(current);
+            size_t* b_size = reinterpret_cast<size_t*>(current + sizeof(bool));
+            if (*is_free && *b_size >= target_size) {
+                if(max_ok < *b_size) {
+                    max_ok = *b_size;
+                    ok_ptr = current + sizeof(bool) + sizeof(size_t);
+                }
             }
-            current += info->size + sizeof(block_info);
+            current += sizeof(bool) + sizeof(size_t) + *b_size;
         }
-        std::sort(blocks.rbegin(), blocks.rend());
-        for (auto& block : blocks) {
-            block_info* info = reinterpret_cast<block_info*>(block.second);
-            if (info->size > target_size) {
-                block_info* next_info = reinterpret_cast<block_info*>(block.second + target_size + sizeof(block_info));
-                next_info->is_free = true;
-                next_info->size = info->size - target_size - sizeof(block_info);
-                info->size = target_size;
-            }
-            info->is_free = false;
-            return block.second + sizeof(block_info);
-        }
-        return nullptr;
+        block_split(ok_ptr, target_size);
+        return ok_ptr;
     }
 
     void merge_free() const {
-        char* current = m_data;
-        block_info* prev_info = reinterpret_cast<block_info*>(current);
-        if(current + prev_info->size + sizeof(block_info) < m_data + m_size) current += prev_info->size + sizeof(block_info);
+        void* current = m_data;
+        current += (sizeof(allocation_method) + sizeof(allocator*) + sizeof(logger*));
+        size_t m_size = *(reinterpret_cast<size_t*>(current));
+        current += sizeof(size_t);
+        bool* prev_is_free = reinterpret_cast<bool*>(current);
+        size_t* prev_b_size = reinterpret_cast<size_t*>(current + sizeof(bool));   
+        if(current + sizeof(size_t) + *prev_b_size + sizeof(bool) < m_data + m_size) current += (*prev_b_size + sizeof(bool) + sizeof(size_t));
         else return;
-        while (current < m_data + m_size) {
-            block_info* current_info = reinterpret_cast<block_info*>(current);
-            if(current_info->is_free) prev_info->size += current_info->size + sizeof(block_info);
-            else prev_info = reinterpret_cast<block_info*>(current);
-            current += current_info->size + sizeof(block_info);
+        bool* is_free = reinterpret_cast<bool*>(current);
+        size_t* b_size = reinterpret_cast<size_t*>(current + sizeof(bool));
+        current += (sizeof(bool) + sizeof(size_t) + *b_size);
+        while (current + sizeof(bool) < m_data + m_size) {
+            bool* next_is_free = reinterpret_cast<bool*>(current);
+            size_t* next_b_size = reinterpret_cast<size_t*>(current + sizeof(bool));
+            if(*is_free && (*prev_is_free || *next_is_free)){
+                if(*next_is_free){
+                    *b_size += *next_b_size + sizeof(size_t) + sizeof(bool);
+                }
+                if(*prev_is_free){
+                    *prev_b_size += *b_size + sizeof(size_t) + sizeof(bool);
+                    b_size = next_b_size;
+                }
+            }
+            else{
+                prev_b_size = b_size;
+                b_size = next_b_size;
+            }
+            current += *next_b_size + sizeof(size_t) + sizeof(bool);
         }
     }
 
+    void block_split(void* block_ptr, size_t first_size) const {
+        size_t* b_size = reinterpret_cast<size_t*>(block_ptr - sizeof(size_t));
+        if(*b_size > first_size + sizeof(bool) + sizeof(size_t)){
+            bool* next_is_free = reinterpret_cast<bool*>(block_ptr + first_size);
+            *next_is_free = true;
+            size_t* next_size = reinterpret_cast<size_t*>(block_ptr + first_size + sizeof(bool));
+            *next_size = *b_size - first_size - sizeof(bool) - sizeof(size_t);
+            *b_size = first_size;
+        }
+    }
+
+    void log(std::string const & str, logger::severity severity) const {
+        void* current = m_data;
+        current += (sizeof(allocation_method) + sizeof(allocator*));
+        logger* _log = *reinterpret_cast<logger**>(current);
+        if (_log == nullptr) return;
+        _log->log(str, severity);
+    }
+
 public:
-    block_allocator(size_t data_size, allocation_method method, allocator* alloc = new allocator()) {
-        m_size = data_size;
-        m_method = method;
-        m_alloc = alloc;
-        m_data = static_cast<char*>(m_alloc->allocate(m_size));
+    block_allocator(size_t data_size, allocation_method method, allocator* alloc = nullptr, logger *log = nullptr) {
+        if(alloc == nullptr) {
+            try { m_data = reinterpret_cast<void*>(::operator new(data_size)); }
+            catch(...){
+                this->log("Error allocating memory", logger::error);
+                throw;
+            }
+        }
+        else m_data = reinterpret_cast<void*>(alloc->allocate(data_size));
+
+        void* current = m_data;
+
+        allocation_method* m_method = reinterpret_cast<allocation_method*>(current);
+        *m_method = method;
+        current += sizeof(allocation_method);
+
+        allocator** m_alloc = reinterpret_cast<allocator**>(current);
+        *m_alloc = alloc;
+        current += sizeof(allocator*);
+
+        logger** _log = reinterpret_cast<logger**>(current);
+        *_log = log;
+        current += sizeof(logger*);
+
+        size_t* m_size = reinterpret_cast<size_t*>(current);
+        *m_size = (data_size - (sizeof(allocation_method) + sizeof(allocator*) + sizeof(logger*) + sizeof(size_t)));
+        current += sizeof(size_t);
+        
+        bool* is_free = reinterpret_cast<bool*>(current);
+        *is_free = true;
+        current += sizeof(bool);
+
+        size_t* b_size = reinterpret_cast<size_t*>(current);
+        *b_size = *m_size - (sizeof(bool) + sizeof(size_t));
+        current += sizeof(size_t);
+
+        std::ostringstream info_stream;
+        info_stream << "Allocator initialized with free size " << *b_size << " and with first block address < " << reinterpret_cast<char*>(current) - reinterpret_cast<char*>(m_data) << " >";
+        this->log(info_stream.str(), logger::information);
         
     }
+    
     ~block_allocator() {
-        m_alloc->deallocate(m_data);
+        void* current = m_data;
+        current += sizeof(allocation_method);
+        allocator* m_alloc = *reinterpret_cast<allocator**>(current);
+        if(m_alloc == nullptr) ::operator delete(m_data);
+        else m_alloc->deallocate(m_data);
     }
     void* allocate(size_t target_size) const override {
-        switch (m_method)
-        {
-        case first:
-            return first_fit(target_size);
-            break;
-        case best:
-            return best_fit(target_size);
-            break;
-        case worst:
-            return worst_fit(target_size);
-            break;
-        default:
-            break;
+        void* current = m_data;
+        allocation_method m_method = *reinterpret_cast<allocation_method*>(current);
+        void* ptr;
+        std::ostringstream info_stream;
+        if(m_method == first){
+            ptr = first_fit(target_size);
+            info_stream << "Allocated first fit memory with address < " << reinterpret_cast<char*>(ptr) - reinterpret_cast<char*>(m_data) << " >";
+            log(info_stream.str(), logger::information);
+            return ptr;
+        }
+        else if(m_method == best){
+            ptr = best_fit(target_size);
+            info_stream << "Allocated best fit memory with address < " << reinterpret_cast<char*>(ptr) - reinterpret_cast<char*>(m_data) << " >";
+            log(info_stream.str(), logger::information);
+            return ptr;
+        }
+        else{
+            ptr = worst_fit(target_size);
+            info_stream << "Allocated worst fit memory with address < " << reinterpret_cast<char*>(ptr) - reinterpret_cast<char*>(m_data) << " >";
+            log(info_stream.str(), logger::information);
+            return ptr;
         }
     }
     void deallocate(void* target_to_dealloc) const override {
         if(target_to_dealloc == nullptr) return;
-        char* current = reinterpret_cast<char*>(target_to_dealloc) - sizeof(block_info);
-        block_info* info = reinterpret_cast<block_info*>(current);
-        info->is_free = true;
+        void* current = target_to_dealloc - (sizeof(size_t) + sizeof(bool));
+        bool* is_free = reinterpret_cast<bool*>(current);
+        current += sizeof(bool);
+        size_t* b_size = reinterpret_cast<size_t*>(current);
+        *is_free = true;
+
+        std::ostringstream info_stream;
+        info_stream << "Deallocated memory with adress < " << reinterpret_cast<char*>(target_to_dealloc) - reinterpret_cast<char*>(m_data) <<" > and bytes collection < ";
+        unsigned char* bytes = static_cast<unsigned char*>(target_to_dealloc);
+        for(int i = 0; i < *b_size; i++) info_stream << (int)bytes[i] << " ";
+        info_stream << ">";
+        log(info_stream.str(), logger::information);
+
         merge_free();
     }
     void* operator+=(size_t target_size) const {
@@ -139,3 +228,33 @@ public:
         deallocate(target_to_dealloc);
     }
 };
+
+int main(){
+    logger_builder builder;
+    builder.add_stream("console", logger::error).add_stream("allocator_log", logger::information);
+    block_allocator alloc(1024, block_allocator::first, nullptr, builder.build());
+    int* int_ptr = static_cast<int*>(alloc.allocate(sizeof(int)));
+    *int_ptr = 42;
+    std::cout << "int: " << *int_ptr << std::endl;
+    char* str_ptr = static_cast<char*>(alloc.allocate(sizeof(char) * 6));
+    std::strcpy(str_ptr, "hello");
+    std::cout << "string: " << str_ptr << std::endl;
+    class my_class {
+    public:
+        int x, y;
+        my_class(int x, int y) : x(x), y(y) {}
+    };
+    my_class* my_class_ptr = static_cast<my_class*>(alloc.allocate(sizeof(my_class)));
+    *my_class_ptr = my_class(1, 2);
+    std::cout << "my_class: (" << my_class_ptr->x << ", " << my_class_ptr->y << ")" << std::endl;
+
+    bool* tmp_ptr = reinterpret_cast<bool*>(alloc.allocate(sizeof(bool)));
+    *tmp_ptr = true;
+    alloc.deallocate(tmp_ptr);
+
+
+    alloc.deallocate(str_ptr);
+    alloc.deallocate(int_ptr);
+    alloc.deallocate(my_class_ptr);
+    return 0;
+}
