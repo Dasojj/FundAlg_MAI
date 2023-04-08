@@ -20,12 +20,11 @@ private:
             bool* is_free = reinterpret_cast<bool*>(current);
             size_t* b_size = reinterpret_cast<size_t*>(current + sizeof(bool));
             if ((*is_free) && *b_size >= target_size) {
-                *is_free = false;
                 void* ok_ptr = current + sizeof(bool) + sizeof(size_t);
-                block_split(ok_ptr, target_size);
+                block_init(ok_ptr, target_size);
                 return ok_ptr;
             }
-            current += *b_size + sizeof(bool) + sizeof(size_t);
+            current += (2*(sizeof(bool) + sizeof(size_t)) + *b_size);
         }
         return nullptr;
     }
@@ -46,11 +45,9 @@ private:
                     ok_ptr = current + sizeof(bool) + sizeof(size_t);
                 }
             }
-            current += sizeof(bool) + sizeof(size_t) + *b_size;
+            current += (2*(sizeof(bool) + sizeof(size_t)) + *b_size);
         }
-        bool* is_free = reinterpret_cast<bool*>(ok_ptr - (sizeof(bool) + sizeof(size_t)));
-        *is_free = false;
-        block_split(ok_ptr, target_size);
+        block_init(ok_ptr, target_size);
         return ok_ptr;
     }
 
@@ -70,62 +67,31 @@ private:
                     ok_ptr = current + sizeof(bool) + sizeof(size_t);
                 }
             }
-            current += sizeof(bool) + sizeof(size_t) + *b_size;
+            current += (2*(sizeof(bool) + sizeof(size_t)) + *b_size);
         }
-        bool* is_free = reinterpret_cast<bool*>(ok_ptr - (sizeof(bool) + sizeof(size_t)));
-        *is_free = false;
-        block_split(ok_ptr, target_size);
+        block_init(ok_ptr, target_size);
         return ok_ptr;
     }
 
-    void merge_free() const {
-        void* current = m_data;
-        current += (sizeof(allocation_method) + sizeof(allocator*) + sizeof(logger*));
-        size_t m_size = *(reinterpret_cast<size_t*>(current));
-        current += sizeof(size_t);
-        bool* prev_is_free = reinterpret_cast<bool*>(current);
-        size_t* prev_b_size = reinterpret_cast<size_t*>(current + sizeof(bool));   
-        if(current + sizeof(size_t) + *prev_b_size + sizeof(bool) < m_data + m_size) current += (*prev_b_size + sizeof(bool) + sizeof(size_t));
-        else return;
-        bool* is_free = reinterpret_cast<bool*>(current);
-        size_t* b_size = reinterpret_cast<size_t*>(current + sizeof(bool));
-        current += (sizeof(bool) + sizeof(size_t) + *b_size);
-        while (current + sizeof(bool) < m_data + m_size) {
-            bool* next_is_free = reinterpret_cast<bool*>(current);
-            size_t* next_b_size = reinterpret_cast<size_t*>(current + sizeof(bool));
-            if(*is_free && (*prev_is_free || *next_is_free)){
-                if(*next_is_free){
-                    *b_size += *next_b_size + sizeof(size_t) + sizeof(bool);
-                }
-                if(*prev_is_free){
-                    *prev_b_size += *b_size + sizeof(size_t) + sizeof(bool);
-                    b_size = next_b_size;
-                    is_free = next_is_free;
-                }
-                if(*next_is_free && *prev_is_free){
-                    b_size = reinterpret_cast<size_t*>(current + 2*sizeof(bool) + sizeof(size_t) + *next_b_size);
-                    is_free = reinterpret_cast<bool*>(current + sizeof(bool) + sizeof(size_t) + *next_b_size);
-                    *next_b_size += (sizeof(size_t) + sizeof(bool) + *b_size);
-                }
-            }
-            else{
-                prev_b_size = b_size;
-                prev_is_free = is_free;
-                b_size = next_b_size;
-                is_free = next_is_free;
-            }
-            current += *next_b_size + sizeof(size_t) + sizeof(bool);
-        }
-    }
-
-    void block_split(void* block_ptr, size_t first_size) const {
+    void block_init(void* block_ptr, size_t first_size) const {
         if(block_ptr != nullptr){
+            bool* is_free = reinterpret_cast<bool*>(block_ptr - (sizeof(bool) + sizeof(size_t)));
+            *is_free = false;
             size_t* b_size = reinterpret_cast<size_t*>(block_ptr - sizeof(size_t));
-            if(*b_size > first_size + sizeof(bool) + sizeof(size_t)){
-                bool* next_is_free = reinterpret_cast<bool*>(block_ptr + first_size);
+            bool* last_is_free = reinterpret_cast<bool*>(block_ptr + *b_size);
+            *last_is_free = false;
+            if(*b_size > first_size + 2*(sizeof(bool) + sizeof(size_t))){
+                bool* end_is_free = reinterpret_cast<bool*>(block_ptr + first_size);
+                *end_is_free = false;
+                size_t* end_b_size = reinterpret_cast<size_t*>(block_ptr + first_size + sizeof(bool));
+                *end_b_size = first_size;
+                bool* next_is_free = reinterpret_cast<bool*>(block_ptr + first_size + sizeof(bool) + sizeof(size_t));
                 *next_is_free = true;
-                size_t* next_size = reinterpret_cast<size_t*>(block_ptr + first_size + sizeof(bool));
-                *next_size = *b_size - first_size - sizeof(bool) - sizeof(size_t);
+                size_t* next_size = reinterpret_cast<size_t*>(block_ptr + first_size + 2*sizeof(bool) + sizeof(size_t));
+                *next_size = *b_size - (first_size + 2*(sizeof(bool) + sizeof(size_t)));
+                size_t* last_b_size = reinterpret_cast<size_t*>(block_ptr + *b_size + sizeof(bool));
+                *last_b_size = *next_size;
+                *last_is_free = true;
                 *b_size = first_size;
             }
         }
@@ -173,11 +139,20 @@ public:
         current += sizeof(bool);
 
         size_t* b_size = reinterpret_cast<size_t*>(current);
-        *b_size = *m_size - (sizeof(bool) + sizeof(size_t));
+        *b_size = *m_size - 2*(sizeof(bool) + sizeof(size_t));
         current += sizeof(size_t);
+        void* first_block_ptr = current;
+        current += *b_size;
+
+        is_free = reinterpret_cast<bool*>(current);
+        *is_free = true;
+        current += sizeof(bool);
+
+        b_size = reinterpret_cast<size_t*>(current);
+        *b_size = *m_size - 2*(sizeof(bool) + sizeof(size_t));
 
         std::ostringstream info_stream;
-        info_stream << "Allocator initialized with free size " << *b_size << " and with first block address < " << reinterpret_cast<char*>(current) - reinterpret_cast<char*>(m_data) << " >";
+        info_stream << "Allocator initialized with free size " << *b_size << " and with first block address < " << reinterpret_cast<char*>(first_block_ptr) - reinterpret_cast<char*>(m_data) << " >";
         this->log(info_stream.str(), logger::information);
         
     }
@@ -189,6 +164,7 @@ public:
         if(m_alloc == nullptr) ::operator delete(m_data);
         else m_alloc->deallocate(m_data);
     }
+
     void* allocate(size_t target_size) const override {
         void* current = m_data;
         allocation_method m_method = *reinterpret_cast<allocation_method*>(current);
@@ -213,21 +189,45 @@ public:
             return ptr;
         }
     }
+
     void deallocate(void* target_to_dealloc) const override {
         if(target_to_dealloc == nullptr) return;
         void* current = target_to_dealloc;
-        bool* is_free = reinterpret_cast<bool*>(current - (sizeof(size_t) + sizeof(bool)));
-        size_t b_size = *reinterpret_cast<size_t*>(current - sizeof(size_t));
+
+        size_t* b_size = reinterpret_cast<size_t*>(current - sizeof(size_t));
+        size_t start_size = *b_size;
+
+        bool* is_free = reinterpret_cast<bool*>(current - (sizeof(bool) + sizeof(size_t)));
         *is_free = true;
+
+        bool* end_is_free = reinterpret_cast<bool*>(current + *b_size);
+        *end_is_free = true;
+
+        bool* next_is_free = reinterpret_cast<bool*>(current + *b_size + sizeof(bool) + sizeof(size_t));
+        bool* prev_end_is_free = reinterpret_cast<bool*>(current - 2*(sizeof(bool) + sizeof(size_t)));
+
+        if(*next_is_free){
+            size_t* next_b_size = reinterpret_cast<size_t*>(current + *b_size + 2*sizeof(bool) + sizeof(size_t));
+            *b_size += *next_b_size + 2*(sizeof(size_t) + sizeof(bool));
+            size_t* end_b_size = reinterpret_cast<size_t*>(current + *b_size + sizeof(bool));
+            *end_b_size = *b_size;
+        }
+        if(*prev_end_is_free){
+            size_t* prev_end_b_size = reinterpret_cast<size_t*>(current - (sizeof(bool) + 2*sizeof(size_t)));
+            size_t* prev_b_size = reinterpret_cast<size_t*>(current - (2*(sizeof(bool) + sizeof(size_t)) + *prev_end_b_size + sizeof(size_t)));
+            *prev_b_size += *b_size + 2*(sizeof(bool) + sizeof(size_t));
+            size_t* end_b_size = reinterpret_cast<size_t*>(current + *b_size + sizeof(bool));
+            *end_b_size = *prev_b_size;
+        }
 
         std::ostringstream info_stream;
         info_stream << "Deallocated memory with adress < " << reinterpret_cast<char*>(target_to_dealloc) - reinterpret_cast<char*>(m_data) <<" > and bytes collection < ";
         unsigned char* bytes = static_cast<unsigned char*>(target_to_dealloc);
-        for(int i = 0; i < b_size; i++) info_stream << (int)bytes[i] << " ";
+        for(int i = 0; i < start_size; i++) info_stream << (int)bytes[i] << " ";
         info_stream << ">";
         log(info_stream.str(), logger::information);
-        merge_free();
     }
+
     void* operator+=(size_t target_size) const {
         return allocate(target_size);
     }
@@ -238,7 +238,7 @@ public:
 
 int main(){
     logger_builder builder;
-    builder.add_stream("console", logger::error).add_stream("allocator_log", logger::information);
+    builder.add_stream("console", logger::error).add_stream("allocator_log_2", logger::information);
     block_allocator alloc(1024, block_allocator::first, nullptr, builder.build());
     int* int_ptr = static_cast<int*>(alloc.allocate(sizeof(int)));
     *int_ptr = 42;
