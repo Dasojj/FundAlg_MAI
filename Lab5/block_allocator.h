@@ -227,12 +227,7 @@ public:
         log(info_stream.str(), logger::information);
         merge_free();
     }
-    void* operator+=(size_t target_size) const {
-        return allocate(target_size);
-    }
-    void operator-=(void* target_to_dealloc) const {
-        deallocate(target_to_dealloc);
-    }
+
 };
 
 #endif //BLOCK_ALLOCATOR_H

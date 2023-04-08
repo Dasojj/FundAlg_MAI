@@ -13,6 +13,7 @@ public:
     void operator-=(void* target_to_dealloc) const {
         deallocate(target_to_dealloc);
     }
+    virtual ~memory() noexcept = default;
 };
 
 #endif //MEMORY_H
