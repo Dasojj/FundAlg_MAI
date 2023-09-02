@@ -1,0 +1,19 @@
+ADD_POOL pool1
+ADD_POOL pool2
+
+ADD_SCHEME pool1 scheme1
+ADD_SCHEME pool1 scheme2
+ADD_SCHEME pool2 scheme3
+
+ADD_COLLECTION pool1 scheme1 collection1
+ADD_COLLECTION pool1 scheme1 collection2
+ADD_COLLECTION pool1 scheme2 collection3
+ADD_COLLECTION pool2 scheme3 collection4
+
+ADD_RECORD pool1 scheme1 collection1 1 "John Alexander Doe" "1995-01-15" "resume1.pdf" 101 201 "C++" 5 3 false
+ADD_RECORD pool1 scheme1 collection1 2 "Jane Elizabeth Smith" "1998-07-20" "resume2.pdf" 102 202 "Python" 7 7 false
+ADD_RECORD pool1 scheme1 collection2 3 "Bob William Johnson" "1993-03-10" "resume3.pdf" 103 203 "Java" 10 9 false
+ADD_RECORD pool1 scheme2 collection3 4 "Alice Mary Brown" "1996-11-03" "resume4.pdf" 104 204 "C#" 8 8 true
+ADD_RECORD pool2 scheme3 collection4 5 "Michael James Williams" "1997-05-25" "resume5.pdf" 105 205 "JavaScript" 6 4 false
+
+SAVE_STATE state.txt
